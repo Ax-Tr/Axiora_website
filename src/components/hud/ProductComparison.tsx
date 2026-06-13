@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useNexus, PRODUCTS } from "@/context/NexusContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Shield, Activity, Cpu, Sparkles } from "lucide-react";
@@ -9,6 +9,17 @@ import Image from "next/image";
 export default function ProductComparison() {
   const { comparisonOpen, setComparisonOpen, selectWorld } = useNexus();
 
+  useEffect(() => {
+    if (!comparisonOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setComparisonOpen(false);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [comparisonOpen, setComparisonOpen]);
+
   return (
     <AnimatePresence>
       {comparisonOpen && (
@@ -16,41 +27,45 @@ export default function ProductComparison() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Axiora product comparison matrix"
+          className="fixed inset-0 z-50 flex items-center justify-center p-2 bg-brand-blue/20 backdrop-blur-md sm:p-4"
         >
           <motion.div
             initial={{ scale: 0.95, y: 20 }}
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.95, y: 20 }}
-            className="w-full max-w-6xl h-[90vh] glass-panel rounded-2xl flex flex-col overflow-hidden border border-white/10 scanline"
+            className="brand-panel w-full max-w-6xl h-[94vh] premium-surface rounded-lg flex flex-col overflow-hidden border border-brand-blue/15 scanline sm:h-[90vh]"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-white/10 bg-black/40">
+            <div className="flex items-center justify-between gap-3 p-3 border-b border-brand-blue/10 bg-white/55 sm:p-6">
               <div>
-                <h2 className="text-2xl font-bold tracking-wider text-neon-cyan flex items-center gap-2">
-                  <Sparkles className="w-6 h-6 animate-pulse" />
-                  AXIORA CORE COMPARISON MATRIX
+                <h2 className="text-sm font-bold tracking-wider text-neon-cyan flex items-center gap-2 sm:text-2xl">
+                  <Sparkles className="w-4 h-4 animate-pulse sm:w-6 sm:h-6" />
+                  PRODUCT COMPARISON
                 </h2>
-                <p className="text-xs text-white/50 font-mono mt-1">
+                <p className="hidden text-xs text-white/50 font-mono mt-1 sm:block">
                   MODULE EVALUATION & SPECIFICATIONS
                 </p>
               </div>
               <button
                 onClick={() => setComparisonOpen(false)}
-                className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all duration-300 cursor-pointer"
+                aria-label="Close comparison matrix"
+                className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all duration-300 cursor-pointer shrink-0"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
 
             {/* Content Area - Scrollable */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="flex-1 overflow-y-auto p-3 space-y-4 sm:p-6 sm:space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
                 {PRODUCTS.map((prod) => (
                   <motion.div
                     key={prod.id}
                     whileHover={{ y: -4, borderColor: prod.colorHex }}
-                    className="p-5 rounded-xl border border-white/5 bg-white/5 flex flex-col justify-between transition-all duration-300"
+                    className="p-3 rounded-lg border border-brand-blue/10 bg-white/55 flex flex-col justify-between transition-all duration-300 sm:p-5"
                     style={{
                       boxShadow: `0 4px 20px -5px ${prod.colorHex}20`
                     }}
@@ -60,7 +75,7 @@ export default function ProductComparison() {
                       <div className="flex items-start justify-between">
                         <div className="text-left">
                           <h3
-                            className="text-xl font-bold tracking-wide"
+                            className="text-base font-bold tracking-wide sm:text-xl"
                             style={{ color: prod.colorHex }}
                           >
                             {prod.name}
@@ -165,7 +180,8 @@ export default function ProductComparison() {
                         setComparisonOpen(false);
                         selectWorld(prod.id);
                       }}
-                      className="mt-6 w-full py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-lg text-xs font-mono text-white tracking-wider hover:border-white/30 transition-all duration-300 cursor-pointer"
+                      aria-label={`Enter ${prod.name}`}
+                    className="brand-primary-action mt-6 w-full py-2 bg-brand-blue hover:bg-brand-blue-deep border border-brand-blue/20 rounded-lg text-xs font-mono text-white tracking-wider transition-all duration-300 cursor-pointer shadow-[0_10px_22px_rgba(7,87,184,0.18)]"
                     >
                       ENTER WORLD
                     </button>
@@ -175,9 +191,9 @@ export default function ProductComparison() {
             </div>
 
             {/* Footer */}
-            <div className="p-4 bg-black/60 border-t border-white/10 flex justify-between items-center text-xs font-mono text-white/30">
+            <div className="p-3 bg-white/55 border-t border-brand-blue/10 flex justify-between items-center text-[10px] font-mono text-brand-ink/45 sm:p-4 sm:text-xs">
               <span>AXIORA OS V3.0.0</span>
-              <span>© {new Date().getFullYear()} AXIORA GLOBAL SOLUTIONS</span>
+              <span>{new Date().getFullYear()} AXIORA GLOBAL SOLUTIONS</span>
             </div>
           </motion.div>
         </motion.div>

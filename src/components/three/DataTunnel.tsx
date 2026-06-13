@@ -2,6 +2,7 @@
 
 import React, { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
+import { useReducedMotion } from "framer-motion";
 import * as THREE from "three";
 import { useNexus } from "@/context/NexusContext";
 
@@ -14,13 +15,14 @@ import { useNexus } from "@/context/NexusContext";
  */
 export default function DataTunnel() {
   const { transitioning } = useNexus();
+  const prefersReducedMotion = useReducedMotion();
   const streaksRef = useRef<THREE.Group>(null);
   const flashRef = useRef<THREE.Mesh>(null);
   const ambientRef = useRef<THREE.PointLight>(null);
   const progressRef = useRef(0);
 
   // Hyperspace star streaks — positioned in a forward-facing cylinder
-  const streakCount = 400;
+  const streakCount = prefersReducedMotion ? 80 : 240;
   const streakData = useMemo(() => {
     const arr = [];
     for (let i = 0; i < streakCount; i++) {
@@ -34,12 +36,13 @@ export default function DataTunnel() {
         baseLength: 0.01,
         speed: 0.8 + Math.random() * 1.5,
         brightness: 0.4 + Math.random() * 0.6,
-        // Slight color variation: white to blue
-        color: new THREE.Color().setHSL(0.55 + Math.random() * 0.1, 0.3 + Math.random() * 0.4, 0.7 + Math.random() * 0.3),
+        color: Math.random() > 0.82
+          ? new THREE.Color("#ff8a00")
+          : new THREE.Color().setHSL(0.6 + Math.random() * 0.04, 0.45, 0.62 + Math.random() * 0.25),
       });
     }
     return arr;
-  }, []);
+  }, [streakCount]);
 
   useFrame((state, delta) => {
     if (!transitioning) {
@@ -49,7 +52,7 @@ export default function DataTunnel() {
 
     progressRef.current += delta;
     const t = progressRef.current;
-    const totalDuration = 2.3; // Total transition time in seconds
+    const totalDuration = prefersReducedMotion ? 1.2 : 2.3; // Total transition time in seconds
 
     // Compute stretch factor — ramps up then down (Star Wars style)
     let stretchFactor: number;
@@ -83,11 +86,11 @@ export default function DataTunnel() {
         if (mesh.position.z > 30) mesh.position.z = -30;
 
         // Stretch the streak along Z axis — this creates the hyperspace effect
-        mesh.scale.set(1, 1, stretchFactor * 80);
+        mesh.scale.set(1, 1, stretchFactor * (prefersReducedMotion ? 24 : 68));
 
         // Brightness increases during full lightspeed
         const mat = mesh.material as THREE.MeshBasicMaterial;
-        const brightness = t > 0.3 && t < totalDuration - 0.5 ? data.brightness * 1.5 : data.brightness * 0.6;
+        const brightness = t > 0.3 && t < totalDuration - 0.5 ? data.brightness * 1.25 : data.brightness * 0.45;
         mat.opacity = brightness;
       });
     }
@@ -96,7 +99,7 @@ export default function DataTunnel() {
     if (flashRef.current) {
       let flashOpacity = 0;
       if (t > 0.2 && t < 0.6) {
-        flashOpacity = Math.sin(((t - 0.2) / 0.4) * Math.PI) * 0.4;
+        flashOpacity = Math.sin(((t - 0.2) / 0.4) * Math.PI) * (prefersReducedMotion ? 0.14 : 0.28);
       }
       (flashRef.current.material as THREE.MeshBasicMaterial).opacity = flashOpacity;
       flashRef.current.position.copy(state.camera.position);
@@ -106,7 +109,7 @@ export default function DataTunnel() {
     // Ambient light pulse
     if (ambientRef.current) {
       ambientRef.current.position.copy(state.camera.position);
-      const intensity = t > 0.3 && t < totalDuration - 0.5 ? 6 + Math.sin(t * 12) * 2 : 1;
+      const intensity = t > 0.3 && t < totalDuration - 0.5 ? 3.2 + Math.sin(t * 12) * 1 : 0.65;
       ambientRef.current.intensity = intensity;
     }
   });
@@ -147,8 +150,8 @@ export default function DataTunnel() {
       </mesh>
 
       {/* Warp ambient lighting */}
-      <pointLight ref={ambientRef} color="#80c0ff" intensity={3} distance={30} decay={2} />
-      <pointLight color="#4060ff" intensity={2} distance={20} decay={2} />
+      <pointLight ref={ambientRef} color="#0757b8" intensity={3} distance={30} decay={2} />
+      <pointLight color="#ff8a00" intensity={1.4} distance={20} decay={2} />
     </group>
   );
 }

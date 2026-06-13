@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useNexus, PRODUCTS } from "@/context/NexusContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Send, CheckCircle2, ChevronRight, Terminal } from "lucide-react";
@@ -22,7 +22,7 @@ export default function ContactCenter() {
     setSubmitted(true);
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setContactOpen(false);
     // Reset form after exit animation completes
     setTimeout(() => {
@@ -36,7 +36,18 @@ export default function ContactCenter() {
         message: ""
       });
     }, 300);
-  };
+  }, [setContactOpen]);
+
+  useEffect(() => {
+    if (!contactOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") handleClose();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [contactOpen, handleClose]);
 
   return (
     <AnimatePresence>
@@ -45,13 +56,16 @@ export default function ContactCenter() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Axiora integration hub"
+          className="fixed inset-0 z-50 flex items-center justify-center p-2 bg-black/85 backdrop-blur-md sm:p-4"
         >
           <motion.div
             initial={{ scale: 0.95, y: 30 }}
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.95, y: 30 }}
-            className="w-full max-w-lg glass-panel border border-neon-cyan/20 rounded-2xl overflow-hidden scanline relative"
+            className="w-full max-w-lg max-h-[94vh] glass-panel border border-neon-cyan/20 rounded-lg overflow-y-auto scanline relative"
             style={{
               boxShadow: "0 0 30px rgba(0, 243, 255, 0.15)"
             }}
@@ -60,11 +74,11 @@ export default function ContactCenter() {
             <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-neon-cyan to-transparent" />
 
             {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b border-white/10 bg-black/50">
+            <div className="flex items-center justify-between gap-3 p-4 border-b border-white/10 bg-black/50 sm:p-5">
               <div className="flex items-center gap-2">
                 <Terminal className="w-5 h-5 text-neon-cyan animate-pulse" />
                 <div>
-                  <h2 className="text-lg font-bold tracking-wider text-white">
+                  <h2 className="text-sm font-bold tracking-wider text-white sm:text-lg">
                     AXIORA INTEGRATION HUB
                   </h2>
                   <p className="text-[10px] text-white/40 font-mono">
@@ -74,6 +88,7 @@ export default function ContactCenter() {
               </div>
               <button
                 onClick={handleClose}
+                aria-label="Close integration hub"
                 className="p-1 text-white/60 hover:text-white hover:bg-white/10 rounded-full transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -81,19 +96,19 @@ export default function ContactCenter() {
             </div>
 
             {/* Form & Success States */}
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               {!submitted ? (
                 <form onSubmit={handleSubmit} className="space-y-4">
                   {/* Step indicators */}
                   <div className="flex items-center justify-center gap-2 mb-4">
                     <div
                       className={`h-1 w-12 rounded transition ${
-                        step >= 1 ? "bg-neon-cyan shadow-[0_0_8px_#00f3ff]" : "bg-white/20"
+                        step >= 1 ? "bg-neon-cyan shadow-[0_0_8px_rgba(7,87,184,0.45)]" : "bg-white/20"
                       }`}
                     />
                     <div
                       className={`h-1 w-12 rounded transition ${
-                        step >= 2 ? "bg-neon-cyan shadow-[0_0_8px_#00f3ff]" : "bg-white/20"
+                        step >= 2 ? "bg-neon-cyan shadow-[0_0_8px_rgba(7,87,184,0.45)]" : "bg-white/20"
                       }`}
                     />
                   </div>
@@ -109,10 +124,11 @@ export default function ContactCenter() {
                       >
                         {/* Name */}
                         <div>
-                          <label className="block text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1.5">
+                          <label htmlFor="contact-name" className="block text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1.5">
                             COMMANDER NAME
                           </label>
                           <input
+                            id="contact-name"
                             type="text"
                             required
                             placeholder="Enter full name"
@@ -124,10 +140,11 @@ export default function ContactCenter() {
 
                         {/* Email */}
                         <div>
-                          <label className="block text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1.5">
+                          <label htmlFor="contact-email" className="block text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1.5">
                             DIGITAL EMAIL
                           </label>
                           <input
+                            id="contact-email"
                             type="email"
                             required
                             placeholder="Enter business email"
@@ -139,10 +156,11 @@ export default function ContactCenter() {
 
                         {/* Org */}
                         <div>
-                          <label className="block text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1.5">
+                          <label htmlFor="contact-org" className="block text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1.5">
                             ORGANIZATION / ENTERPRISE
                           </label>
                           <input
+                            id="contact-org"
                             type="text"
                             required
                             placeholder="Enter company name"
@@ -171,10 +189,11 @@ export default function ContactCenter() {
                       >
                         {/* Selected Product */}
                         <div>
-                          <label className="block text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1.5">
+                          <label htmlFor="contact-interest" className="block text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1.5">
                             TARGET MODULE INTEREST
                           </label>
                           <select
+                            id="contact-interest"
                             value={formData.interest}
                             onChange={(e) => setFormData({ ...formData, interest: e.target.value })}
                             className="w-full px-4 py-2.5 bg-black/60 border border-white/15 focus:border-neon-cyan focus:ring-1 focus:ring-neon-cyan/30 rounded-lg text-sm text-white font-mono outline-none transition"
@@ -189,10 +208,11 @@ export default function ContactCenter() {
 
                         {/* Message */}
                         <div>
-                          <label className="block text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1.5">
+                          <label htmlFor="contact-message" className="block text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1.5">
                             INTEGRATION REQUIREMENTS
                           </label>
                           <textarea
+                            id="contact-message"
                             rows={3}
                             required
                             placeholder="Describe your scaling or integration needs..."
@@ -213,9 +233,9 @@ export default function ContactCenter() {
                           <button
                             type="submit"
                             disabled={!formData.message}
-                            className="flex-1 py-3 bg-gradient-to-r from-neon-cyan to-neon-blue text-black font-bold rounded-lg text-xs font-mono tracking-wider flex items-center justify-center gap-1.5 transition-all duration-300 shadow-[0_0_15px_rgba(0,243,255,0.4)] hover:shadow-[0_0_25px_rgba(0,243,255,0.6)] cursor-pointer"
+                            className="flex-1 py-3 bg-gradient-to-r from-neon-cyan to-neon-blue text-white font-bold rounded-lg text-xs font-mono tracking-wider flex items-center justify-center gap-1.5 transition-all duration-300 shadow-[0_12px_28px_rgba(7,87,184,0.28)] hover:shadow-[0_16px_36px_rgba(7,87,184,0.38)] cursor-pointer"
                           >
-                            TRANSMIT PACKET <Send className="w-4 h-4 text-black" />
+                            TRANSMIT PACKET <Send className="w-4 h-4 text-white" />
                           </button>
                         </div>
                       </motion.div>

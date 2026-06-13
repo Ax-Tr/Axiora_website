@@ -1,18 +1,5 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Share_Tech_Mono } from "next/font/google";
 import "./globals.css";
-
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-space-grotesk",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-});
-
-const shareTechMono = Share_Tech_Mono({
-  variable: "--font-tech-mono",
-  subsets: ["latin"],
-  weight: ["400"],
-});
 
 export const metadata: Metadata = {
   title: "Axiora Global Solutions | Axiora Business Operating System",
@@ -43,8 +30,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${spaceGrotesk.variable} ${shareTechMono.variable}`}>
-      <body className="antialiased select-none bg-[#04040d] text-[#f1f1f7]">
+    <html lang="en">
+      <body className="antialiased select-none bg-background text-foreground">
         {children}
       </body>
     </html>

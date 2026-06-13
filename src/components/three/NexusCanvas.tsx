@@ -1,13 +1,11 @@
 "use client";
 
-import React, { useEffect, useRef, Suspense, useMemo } from "react";
+import React, { useEffect, useRef, useMemo, useState } from "react";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
-import { Stars, Preload, Environment, AdaptiveDpr, AdaptiveEvents } from "@react-three/drei";
-import { EffectComposer, Bloom, Vignette, ChromaticAberration } from "@react-three/postprocessing";
-import { BlendFunction } from "postprocessing";
+import { Stars, Preload, AdaptiveDpr, AdaptiveEvents } from "@react-three/drei";
 import * as THREE from "three";
 import gsap from "gsap";
-import { useNexus } from "@/context/NexusContext";
+import { useNexus, WorldType } from "@/context/NexusContext";
 import CommandNexus from "./CommandNexus";
 import DataTunnel from "./DataTunnel";
 import {
@@ -20,9 +18,62 @@ import {
 } from "./ProductWorlds";
 
 /* ─── Deep-Space Nebula Particle Cloud ──────────────────────── */
-function NebulaDust() {
+interface PerformanceProfile {
+  reducedMotion: boolean;
+  lowPower: boolean;
+  mobile: boolean;
+  slowNetwork: boolean;
+}
+
+function usePerformanceProfile(): PerformanceProfile {
+  const [profile, setProfile] = useState<PerformanceProfile>({
+    reducedMotion: false,
+    lowPower: false,
+    mobile: false,
+    slowNetwork: false,
+  });
+
+  useEffect(() => {
+    const reducedQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const mobileQuery = window.matchMedia("(max-width: 768px)");
+
+    const update = () => {
+      const nav = navigator as Navigator & { deviceMemory?: number };
+      const connection = navigator as Navigator & {
+        connection?: { effectiveType?: string; saveData?: boolean };
+      };
+      const limitedMemory = typeof nav.deviceMemory === "number" && nav.deviceMemory <= 4;
+      const limitedCores = typeof navigator.hardwareConcurrency === "number" && navigator.hardwareConcurrency <= 4;
+      const mobile = mobileQuery.matches;
+      const reducedMotion = reducedQuery.matches;
+      const slowNetwork = Boolean(
+        connection.connection?.saveData ||
+        ["slow-2g", "2g", "3g"].includes(connection.connection?.effectiveType || "")
+      );
+
+      setProfile({
+        reducedMotion,
+        mobile,
+        slowNetwork,
+        lowPower: reducedMotion || mobile || limitedMemory || limitedCores || slowNetwork,
+      });
+    };
+
+    update();
+    reducedQuery.addEventListener("change", update);
+    mobileQuery.addEventListener("change", update);
+
+    return () => {
+      reducedQuery.removeEventListener("change", update);
+      mobileQuery.removeEventListener("change", update);
+    };
+  }, []);
+
+  return profile;
+}
+
+function NebulaDust({ count }: { count: number }) {
   const ref = useRef<THREE.Points>(null);
-  const count = 3000;
 
   const [positions, colors, sizes] = useMemo(() => {
     const pos = new Float32Array(count * 3);
@@ -30,11 +81,11 @@ function NebulaDust() {
     const sz = new Float32Array(count);
 
     const palette = [
-      new THREE.Color("#1a0a3e"),
-      new THREE.Color("#0d1b4a"),
-      new THREE.Color("#1b0030"),
-      new THREE.Color("#001428"),
-      new THREE.Color("#0a0025"),
+      new THREE.Color("#0757b8"),
+      new THREE.Color("#83a7f3"),
+      new THREE.Color("#ff8a00"),
+      new THREE.Color("#43ad2f"),
+      new THREE.Color("#ffffff"),
     ];
 
     for (let i = 0; i < count; i++) {
@@ -51,7 +102,7 @@ function NebulaDust() {
       sz[i] = 0.3 + Math.random() * 1.2;
     }
     return [pos, col, sz];
-  }, []);
+  }, [count]);
 
   useFrame((state) => {
     if (ref.current) {
@@ -70,7 +121,7 @@ function NebulaDust() {
         vertexColors
         size={0.6}
         transparent
-        opacity={0.25}
+        opacity={0.18}
         sizeAttenuation
         depthWrite={false}
         blending={THREE.AdditiveBlending}
@@ -80,9 +131,8 @@ function NebulaDust() {
 }
 
 /* ─── Ambient Floating Energy Particles ─────────────────────── */
-function AmbientEnergy() {
+function AmbientEnergy({ count, disabled }: { count: number; disabled: boolean }) {
   const ref = useRef<THREE.Points>(null);
-  const count = 800;
 
   const positions = useMemo(() => {
     const pos = new Float32Array(count * 3);
@@ -92,9 +142,10 @@ function AmbientEnergy() {
       pos[i * 3 + 2] = (Math.random() - 0.5) * 50;
     }
     return pos;
-  }, []);
+  }, [count]);
 
   useFrame((state) => {
+    if (disabled) return;
     if (!ref.current) return;
     const elapsed = state.clock.getElapsedTime();
     const arr = ref.current.geometry.attributes.position.array as Float32Array;
@@ -110,10 +161,10 @@ function AmbientEnergy() {
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>
       <pointsMaterial
-        color="#00f3ff"
+        color="#0757b8"
         size={0.08}
         transparent
-        opacity={0.4}
+        opacity={0.28}
         sizeAttenuation
         depthWrite={false}
         blending={THREE.AdditiveBlending}
@@ -123,7 +174,7 @@ function AmbientEnergy() {
 }
 
 /* ─── Cinematic Camera Rig ──────────────────────────────────── */
-function CameraRig() {
+function CameraRig({ profile }: { profile: PerformanceProfile }) {
   const { activeWorld, transitioning } = useNexus();
   const { camera } = useThree();
 
@@ -182,72 +233,79 @@ function CameraRig() {
   }, [activeWorld, camera]);
 
   useFrame((state) => {
-    if (transitioning) return;
+    if (transitioning || profile.reducedMotion) return;
     const mouse = state.mouse;
-    const targetX = proxy.current.x + mouse.x * 1.0;
-    const targetY = proxy.current.y + mouse.y * 0.6;
-    camera.position.x += (targetX - camera.position.x) * 0.06;
-    camera.position.y += (targetY - camera.position.y) * 0.06;
+    const drift = profile.lowPower ? 0.35 : 0.85;
+    const targetX = proxy.current.x + mouse.x * drift;
+    const targetY = proxy.current.y + mouse.y * drift * 0.55;
+    camera.position.x += (targetX - camera.position.x) * 0.045;
+    camera.position.y += (targetY - camera.position.y) * 0.045;
     camera.lookAt(proxy.current.tx, proxy.current.ty, proxy.current.tz);
   });
 
   return null;
 }
 
-/* ─── Post-Processing Stack ─────────────────────────────────── */
-function PostEffects() {
-  return (
-    <EffectComposer>
-      <Bloom
-        luminanceThreshold={0.25}
-        luminanceSmoothing={0.9}
-        intensity={1.8}
-        mipmapBlur
-      />
-      <Vignette
-        offset={0.3}
-        darkness={0.4}
-        blendFunction={BlendFunction.NORMAL}
-      />
-      <ChromaticAberration
-        radialModulation={false}
-        modulationOffset={0.0}
-        offset={new THREE.Vector2(0.0006, 0.0006)}
-        blendFunction={BlendFunction.NORMAL}
-      />
-    </EffectComposer>
-  );
+function ProductWorldLayer() {
+  const { activeWorld, transitioning } = useNexus();
+  const visibleWorld = transitioning ? null : activeWorld;
+  const worlds: Partial<Record<WorldType, React.ReactNode>> = {
+    pulse: <PulseWorld position={[25, 0, -25]} />,
+    prism: <PrismWorld position={[-25, 0, -25]} />,
+    paywithease: <PaywithEaseWorld position={[25, 15, 25]} />,
+    upaadi: <UpaadiWorld position={[-25, 15, 25]} />,
+    udyoga: <UdyogaWorld position={[0, -25, -25]} />,
+    interview: <InterviewerWorld position={[0, 25, -25]} />,
+  };
+
+  return <>{visibleWorld && worlds[visibleWorld]}</>;
 }
 
 /* ─── Main NexusCanvas ──────────────────────────────────────── */
 export default function NexusCanvas() {
+  const profile = usePerformanceProfile();
+  const nebulaCount = profile.slowNetwork || profile.mobile ? 420 : profile.lowPower ? 700 : 1800;
+  const energyCount = profile.slowNetwork || profile.mobile ? 70 : profile.lowPower ? 140 : 420;
+  const starCount = profile.slowNetwork || profile.mobile ? 600 : profile.lowPower ? 900 : 2400;
+  const dpr: [number, number] = profile.lowPower ? [0.65, 1] : [1, 1.35];
+
   return (
-    <div className="w-full h-screen absolute inset-0 bg-[#020108] z-10">
+    <div className="w-full h-screen absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,#263f72_0%,#101a2d_42%,#050711_100%)] z-10">
       <Canvas
         camera={{ fov: 55, near: 0.1, far: 250, position: [0, 5, 22] }}
         gl={{
-          antialias: true,
+          antialias: !profile.lowPower,
           alpha: false,
+          powerPreference: "high-performance",
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.2,
+          toneMappingExposure: 1.08,
         }}
-        dpr={[1, 1.5]}
+        dpr={dpr}
         performance={{ min: 0.5 }}
-        shadows
+        shadows={!profile.lowPower}
       >
         <AdaptiveDpr pixelated />
         <AdaptiveEvents />
-        <color attach="background" args={["#020108"]} />
-        <fogExp2 attach="fog" args={["#030012", 0.012]} />
+        <color attach="background" args={["#060914"]} />
+        <fogExp2 attach="fog" args={["#111a33", 0.006]} />
 
         {/* Cinematic Lighting Rig */}
-        <ambientLight intensity={0.12} color="#1a1030" />
+        <ambientLight intensity={profile.lowPower ? 0.28 : 0.18} color="#92a8d8" />
 
         {/* Key light — warm stellar */}
         <directionalLight
           position={[15, 25, 10]}
-          intensity={0.8}
-          color="#e8dff5"
+          intensity={profile.lowPower ? 0.75 : 0.95}
+          color="#ffffff"
+          castShadow={!profile.lowPower}
+          shadow-mapSize-width={profile.lowPower ? 512 : 1024}
+          shadow-mapSize-height={profile.lowPower ? 512 : 1024}
+          shadow-camera-near={1}
+          shadow-camera-far={90}
+          shadow-camera-left={-35}
+          shadow-camera-right={35}
+          shadow-camera-top={35}
+          shadow-camera-bottom={-35}
         />
 
         {/* Rim light — cyan from top-right */}
@@ -255,9 +313,10 @@ export default function NexusCanvas() {
           position={[20, 30, 15]}
           angle={0.5}
           penumbra={1}
-          intensity={3}
-          color="#00f3ff"
+          intensity={profile.lowPower ? 1.1 : 1.8}
+          color="#0757b8"
           distance={80}
+          castShadow={!profile.lowPower}
         />
 
         {/* Fill light — magenta from below-left */}
@@ -265,58 +324,47 @@ export default function NexusCanvas() {
           position={[-15, -20, -10]}
           angle={0.5}
           penumbra={1}
-          intensity={2}
-          color="#ff007f"
+          intensity={profile.lowPower ? 0.75 : 1.25}
+          color="#ff8a00"
           distance={60}
+          castShadow={!profile.lowPower}
         />
 
         {/* Accent — deep purple */}
-        <pointLight position={[0, -10, 20]} intensity={1.5} color="#6a00ff" distance={50} />
+        <pointLight position={[0, -10, 20]} intensity={profile.lowPower ? 0.55 : 0.95} color="#0757b8" distance={50} />
 
         {/* Accent — warm gold */}
-        <pointLight position={[-20, 10, -15]} intensity={1} color="#ffbe0b" distance={40} />
+        <pointLight position={[-20, 10, -15]} intensity={profile.lowPower ? 0.45 : 0.8} color="#ff8a00" distance={40} />
 
-        <Suspense fallback={null}>
-          {/* Environment map for reflections */}
-          <Environment preset="night" environmentIntensity={0.15} />
+        {/* Deep space star field */}
+        <Stars
+          radius={100}
+          depth={60}
+          count={starCount}
+          factor={3.5}
+          saturation={0.35}
+          fade
+          speed={profile.reducedMotion ? 0 : 0.45}
+        />
 
-          {/* Deep space star field */}
-          <Stars
-            radius={100}
-            depth={60}
-            count={4000}
-            factor={5}
-            saturation={0.8}
-            fade
-            speed={0.6}
-          />
+        {/* Nebula dust cloud */}
+        <NebulaDust count={nebulaCount} />
 
-          {/* Nebula dust cloud */}
-          <NebulaDust />
+        {/* Floating energy motes */}
+        <AmbientEnergy count={energyCount} disabled={profile.lowPower} />
 
-          {/* Floating energy motes */}
-          <AmbientEnergy />
+        {/* Central Nexus Scene */}
+        <CommandNexus />
 
-          {/* Central Nexus Scene */}
-          <CommandNexus />
+        {/* Product Worlds */}
+        <ProductWorldLayer />
 
-          {/* Product Worlds */}
-          <PulseWorld position={[25, 0, -25]} />
-          <PrismWorld position={[-25, 0, -25]} />
-          <PaywithEaseWorld position={[25, 15, 25]} />
-          <UpaadiWorld position={[-25, 15, 25]} />
-          <UdyogaWorld position={[0, -25, -25]} />
-          <InterviewerWorld position={[0, 25, -25]} />
+        {/* Warp Tunnel */}
+        <DataTunnel />
 
-          {/* Warp Tunnel */}
-          <DataTunnel />
+        <CameraRig profile={profile} />
+        <Preload all />
 
-          <CameraRig />
-          <Preload all />
-        </Suspense>
-
-        {/* Post-processing */}
-        <PostEffects />
       </Canvas>
     </div>
   );

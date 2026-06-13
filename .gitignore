@@ -25,10 +25,16 @@
 *.pem
 
 # debug
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+
+# local screenshots / deployment previews
+*.png
+!public/**/*.png
+.edge-debug*/
 
 # env files (can opt-in for committing if needed)
 .env*

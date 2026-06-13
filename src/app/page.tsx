@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
+import { useReducedMotion } from "framer-motion";
 import { NexusProvider } from "@/context/NexusContext";
 import OverlayUI from "@/components/hud/OverlayUI";
 import AIAssistant from "@/components/hud/AIAssistant";
@@ -18,11 +19,16 @@ const NexusCanvas = dynamic(() => import("@/components/three/NexusCanvas"), {
 // Boot screen to simulate system initialization
 function LoadingScreen() {
   return (
-    <div className="fixed inset-0 z-50 bg-[#020108] flex flex-col items-center justify-center font-mono text-xs select-none">
-      <div className="absolute inset-0 tech-grid opacity-30" />
+    <div
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center font-mono text-xs select-none bg-[linear-gradient(180deg,#83a7f3_0%,#b8ccf7_48%,#edf4ff_100%)]"
+      role="status"
+      aria-live="polite"
+      aria-label="Loading Axiora Core"
+    >
+      <div className="absolute inset-0 tech-grid opacity-60" />
       <div className="relative flex flex-col items-center space-y-6 max-w-sm w-full px-8">
         {/* Pulsing Core Ring */}
-        <div className="relative w-16 h-16 border border-neon-cyan/35 rounded-full flex items-center justify-center">
+        <div className="relative w-16 h-16 border border-neon-cyan/35 rounded-full flex items-center justify-center bg-white/45 shadow-[0_18px_45px_rgba(7,87,184,0.18)]">
           <div className="w-10 h-10 border border-dashed border-neon-cyan/60 rounded-full animate-spin" style={{ animationDuration: '3s' }} />
           <Cpu className="w-5 h-5 text-neon-cyan animate-pulse absolute" />
           <div className="absolute inset-0 border border-neon-cyan rounded-full animate-ping opacity-20" />
@@ -30,17 +36,18 @@ function LoadingScreen() {
         
         {/* Telemetry boot details */}
         <div className="text-center space-y-2 w-full">
-          <h2 className="text-sm font-bold tracking-[0.2em] text-white">
-            AXIORA CORE BOOT
+          <h2 className="text-sm font-bold tracking-[0.16em]">
+            <span className="text-neon-cyan">AXIORA</span>{" "}
+            <span className="text-brand-ink">GLOBAL</span>
           </h2>
-          <div className="flex justify-between items-center text-[10px] text-white/40">
+          <div className="flex justify-between items-center text-[10px] text-slate-950/55">
             <span>MEM SCAN: OK</span>
             <span>SEC SHIELD: ENGAGED</span>
           </div>
-          <div className="h-[2px] w-full bg-white/10 rounded overflow-hidden relative">
-            <div className="absolute top-0 bottom-0 left-0 w-3/4 bg-neon-cyan rounded shadow-[0_0_8px_#00f3ff] animate-pulse" />
+          <div className="h-[2px] w-full bg-white/50 rounded overflow-hidden relative">
+            <div className="absolute top-0 bottom-0 left-0 w-3/4 bg-neon-cyan rounded shadow-[0_0_8px_rgba(7,87,184,0.45)] animate-pulse" />
           </div>
-          <p className="text-[9px] text-neon-cyan/60 animate-pulse tracking-widest mt-1">
+          <p className="text-[9px] text-neon-cyan/80 animate-pulse tracking-widest mt-1">
             ESTABLISHING COGNITIVE INTERFACE...
           </p>
         </div>
@@ -52,21 +59,36 @@ function LoadingScreen() {
 // Wrapper component to handle client-side initialization delay
 function AppContent() {
   const [booting, setBooting] = useState(true);
+  const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
-    // Show boot loading screen for a brief period to feel immersive
+    if (prefersReducedMotion) {
+      setBooting(false);
+      return;
+    }
+
+    const connection = navigator as Navigator & {
+      connection?: { saveData?: boolean; effectiveType?: string };
+    };
+    const compactViewport = window.matchMedia("(max-width: 768px)").matches;
+    const slowNetwork = Boolean(
+      connection.connection?.saveData ||
+      ["slow-2g", "2g", "3g"].includes(connection.connection?.effectiveType || "")
+    );
+
+    // Keep the boot moment brief, especially on phones and slow networks.
     const timer = setTimeout(() => {
       setBooting(false);
-    }, 1800);
+    }, compactViewport || slowNetwork ? 450 : 900);
     return () => clearTimeout(timer);
-  }, []);
+  }, [prefersReducedMotion]);
 
   if (booting) {
     return <LoadingScreen />;
   }
 
   return (
-    <main className="relative w-full h-screen overflow-hidden bg-[#020108]">
+    <main className="relative w-full h-screen overflow-hidden bg-[linear-gradient(180deg,#83a7f3_0%,#b8ccf7_48%,#edf4ff_100%)] film-grain" aria-label="Axiora 3D business operating system">
       {/* Background static grid for depth */}
       <div className="absolute inset-0 tech-grid opacity-25 z-0 pointer-events-none" />
 
